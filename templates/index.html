@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Crypto Price Dashboard</h1>
+
+{% if crypto_data %}
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Price (USD)</th>
+        <th>24h Change (%)</th>
+        <th>Market Cap</th>
+    </tr>
+    {% for coin in crypto_data %}
+    <tr>
+        <td>{{ coin.name }}</td>
+        <td>${{ "%.2f"|format(coin.current_price) }}</td>
+        <td>{{ "%.2f"|format(coin.price_change_percentage_24h) }}%</td>
+        <td>${{ "{:,}".format(coin.market_cap) }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No crypto data available right now. Please refresh later.</p>
+{% endif %}
+
+{% endblock %}
