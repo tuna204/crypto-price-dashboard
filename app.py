@@ -1,55 +1,51 @@
 from flask import Flask, render_template, jsonify
 import requests
 import json
-import time
-import os
+from datetime import datetime
 
 app = Flask(__name__)
 
-DATA_FILE = 'data.json'
-
-def fetch_crypto_data():
-    url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {
-        "vs_currency": "usd",
-        "order": "market_cap_desc",
-        "per_page": "10",
-        "page": "1",
-        "sparkline": "false"
-    }
-
-    for attempt in range(3):  # Try 3 times if rate limit hit
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
-            return response.json()
-        elif response.status_code == 429:
-            print(f"[Rate Limit] Attempt {attempt+1}: Waiting 10 seconds...")
-            time.sleep(10)
-        else:
-            response.raise_for_status()
-
-    raise Exception("Failed to fetch data after retries.")
-
 @app.route('/')
 def index():
-    if not os.path.exists(DATA_FILE):
-        return "No data available. Please visit /scrape first.", 404
+    try:
+        with open('data.json', 'r') as file:
+            data = json.load(file)
+            return render_template('index.html', crypto_data=data)
+    except Exception as e:
+        print("Error loading data.json:", e)
+        return render_template('index.html', crypto_data=None)
 
-    with open(DATA_FILE, 'r') as f:
-        try:
-            data = json.load(f)
-        except json.JSONDecodeError:
-            return "Data file is corrupted or empty.", 500
-
-    return render_template('index.html', coins=data)
+@app.route('/about')
+def about():
+    return render_template('about.html')
 
 @app.route('/scrape')
 def scrape():
+    url = "https://api.coingecko.com/api/v3/coins/markets"
+    params = {
+        'vs_currency': 'usd',
+        'order': 'market_cap_desc',
+        'per_page': 10,
+        'page': 1,
+        'sparkline': 'false'
+    }
     try:
-        data = fetch_crypto_data()
-        with open(DATA_FILE, 'w') as f:
-            json.dump(data, f, indent=4)
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Raise error for 4xx/5xx responses
+        data = response.json()
+
+        # Add timestamp
+        for coin in data:
+            coin['scraped_at'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+
+        with open('data.json', 'w') as file:
+            json.dump(data, file, indent=2)
+
         return jsonify({"message": "Data scraped and saved successfully."})
+    except requests.exceptions.HTTPError as e:
+        return jsonify({"error": str(e)}), 429
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+if __name__ == '__main__':
+    app.run(debug=False)
