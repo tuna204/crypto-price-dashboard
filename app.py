@@ -31,18 +31,22 @@ def index():
             data = get_crypto_data()
             with open("data.json", "w") as f:
                 json.dump(data, f)
-       with open("data.json", "r") as f:
-    try:
-        crypto_data = json.load(f)
-        if not isinstance(crypto_data, list):
-            raise ValueError("Invalid data format.")
-    except Exception as e:
-        print("Corrupted JSON, fetching fresh data:", e)
-        crypto_data = get_crypto_data()
-        with open("data.json", "w") as f_write:
-            json.dump(crypto_data, f_write)
 
-    return render_template("index.html", crypto_data=crypto_data)
+        with open("data.json", "r") as f:
+            try:
+                crypto_data = json.load(f)
+                if not isinstance(crypto_data, list):
+                    raise ValueError("Invalid data format.")
+            except Exception as e:
+                print("Corrupted JSON, fetching fresh data:", e)
+                crypto_data = get_crypto_data()
+                with open("data.json", "w") as f_write:
+                    json.dump(crypto_data, f_write)
+
+        return render_template("index.html", crypto_data=crypto_data)
+
+    except Exception as e:
+        return f"An error occurred: {e}"
 
 @app.route("/scrape")
 def scrape():
