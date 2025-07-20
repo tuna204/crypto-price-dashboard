@@ -1,18 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <nav>
-        <a href="/">Home</a> |
-        <a href="/about">About</a>
-    </nav>
-    <main>
-        {% block content %}{% endblock %}
-    </main>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block content %}
+<h1>CryptoTrack - Real-Time Prices</h1>
+
+{% if crypto_data %}
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Price (USD)</th>
+        <th>24h Change (%)</th>
+        <th>Market Cap</th>
+    </tr>
+    {% for coin in crypto_data %}
+    <tr>
+        <td>{{ coin.name }}</td>
+        <td>${{ "%.2f"|format(coin.current_price) }}</td>
+        <td>{{ "%.2f"|format(coin.price_change_percentage_24h) }}%</td>
+        <td>${{ "{:,}".format(coin.market_cap) }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No crypto data available right now. Please refresh later.</p>
+{% endif %}
+
+{% endblock %}
