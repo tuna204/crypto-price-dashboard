@@ -25,3 +25,6 @@ env/
 
 # Log files
 *.log
+
+# Auto-generated data file
+data.json
