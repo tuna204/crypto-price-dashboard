@@ -1,51 +1,57 @@
 from flask import Flask, render_template, jsonify
 import requests
 import json
+import os
 from datetime import datetime
 
 app = Flask(__name__)
 
-@app.route('/')
-def index():
-    try:
-        with open('data.json', 'r') as file:
-            data = json.load(file)
-            return render_template('index.html', crypto_data=data)
-    except Exception as e:
-        print("Error loading data.json:", e)
-        return render_template('index.html', crypto_data=None)
-
-@app.route('/about')
-def about():
-    return render_template('about.html')
-
-@app.route('/scrape')
-def scrape():
+def get_crypto_data():
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {
-        'vs_currency': 'usd',
-        'order': 'market_cap_desc',
-        'per_page': 10,
-        'page': 1,
-        'sparkline': 'false'
+        "vs_currency": "usd",
+        "order": "market_cap_desc",
+        "per_page": 10,
+        "page": 1,
+        "sparkline": False
     }
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    # Add timestamp
+    for coin in data:
+        coin["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    return data
+
+@app.route("/")
+def index():
     try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()  # Raise error for 4xx/5xx responses
-        data = response.json()
-
-        # Add timestamp
-        for coin in data:
-            coin['scraped_at'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
-
-        with open('data.json', 'w') as file:
-            json.dump(data, file, indent=2)
-
-        return jsonify({"message": "Data scraped and saved successfully."})
-    except requests.exceptions.HTTPError as e:
-        return jsonify({"error": str(e)}), 429
+        if not os.path.exists("data.json"):
+            data = get_crypto_data()
+            with open("data.json", "w") as f:
+                json.dump(data, f)
+        with open("data.json", "r") as f:
+            crypto_data = json.load(f)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print("Error loading data:", e)
+        crypto_data = []
 
-if __name__ == '__main__':
+    return render_template("index.html", crypto_data=crypto_data)
+
+@app.route("/scrape")
+def scrape():
+    try:
+        data = get_crypto_data()
+        with open("data.json", "w") as f:
+            json.dump(data, f)
+        return jsonify({"message": "Data scraped and saved successfully."})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+if __name__ == "__main__":
     app.run(debug=False)
