@@ -1,50 +1,55 @@
 from flask import Flask, render_template, jsonify
 import requests
 import json
-from datetime import datetime
+import time
+import os
 
 app = Flask(__name__)
 
-@app.route("/")
-def home():
-    try:
-        with open("data.json", "r") as f:
-            data = json.load(f)
-        return render_template("index.html", data=data)
-    except FileNotFoundError:
-        return "No data available. Please visit /scrape to fetch data first."
+DATA_FILE = 'data.json'
 
-@app.route("/scrape")
-def scrape_data():
+def fetch_crypto_data():
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {
         "vs_currency": "usd",
         "order": "market_cap_desc",
-        "per_page": 10,
-        "page": 1,
-        "sparkline": False
+        "per_page": "10",
+        "page": "1",
+        "sparkline": "false"
     }
 
-    try:
+    for attempt in range(3):  # Try 3 times if rate limit hit
         response = requests.get(url, params=params)
-        response.raise_for_status()
-        coins = response.json()
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 429:
+            print(f"[Rate Limit] Attempt {attempt+1}: Waiting 10 seconds...")
+            time.sleep(10)
+        else:
+            response.raise_for_status()
 
-        coin_data = []
-        for coin in coins:
-            coin_data.append({
-                "name": coin["name"],
-                "symbol": coin["symbol"].upper(),
-                "price": coin["current_price"],
-                "market_cap": coin["market_cap"],
-                "rank": coin["market_cap_rank"],
-                "last_updated": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-            })
+    raise Exception("Failed to fetch data after retries.")
 
-        with open("data.json", "w") as f:
-            json.dump(coin_data, f, indent=4)
+@app.route('/')
+def dashboard():
+    if not os.path.exists(DATA_FILE):
+        return "No data available. Please visit /scrape first.", 404
 
-        return jsonify({"message": "✅ Data scraped and saved to data.json", "data": coin_data})
+    with open(DATA_FILE, 'r') as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            return "Data file is corrupted or empty.", 500
 
+    return render_template('dashboard.html', coins=data)
+
+@app.route('/scrape')
+def scrape():
+    try:
+        data = fetch_crypto_data()
+        with open(DATA_FILE, 'w') as f:
+            json.dump(data, f, indent=4)
+        return jsonify({"message": "Data scraped and saved successfully."})
     except Exception as e:
-        return jsonify({"error": str(e)})
+        return jsonify({"error": str(e)}), 500
+
