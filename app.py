@@ -16,13 +16,23 @@ def get_crypto_data():
         "sparkline": False
     }
     response = requests.get(url, params=params)
-    data = response.json()
 
-    # Add timestamp
-    for coin in data:
-        coin["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    return data
+    try:
+        data = response.json()
+        if not isinstance(data, list):
+            raise ValueError("Invalid response format")
+        
+        # Add timestamp safely
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for coin in data:
+            if isinstance(coin, dict):
+                coin["timestamp"] = timestamp
+
+        return data
+    except Exception as e:
+        print("Failed to parse crypto data:", e)
+        return []
+
 
 @app.route("/")
 def index():
@@ -42,6 +52,7 @@ def index():
                 crypto_data = get_crypto_data()
                 with open("data.json", "w") as f_write:
                     json.dump(crypto_data, f_write)
+
 
         return render_template("index.html", crypto_data=crypto_data)
 
