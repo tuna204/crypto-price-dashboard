@@ -31,7 +31,7 @@ def fetch_crypto_data():
     raise Exception("Failed to fetch data after retries.")
 
 @app.route('/')
-def dashboard():
+def index():
     if not os.path.exists(DATA_FILE):
         return "No data available. Please visit /scrape first.", 404
 
@@ -41,7 +41,7 @@ def dashboard():
         except json.JSONDecodeError:
             return "Data file is corrupted or empty.", 500
 
-    return render_template('dashboard.html', coins=data)
+    return render_template('index.html', coins=data)
 
 @app.route('/scrape')
 def scrape():
